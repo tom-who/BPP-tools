@@ -1,0 +1,69 @@
+#!/bin/bash
+
+########################################
+# Recon tool, Most of things copied from
+# nahamsec lazy recon
+# most things coppied from some random guys github hehe
+########################################
+
+# Global variables 
+domain=$1
+dir=./$domain
+
+
+# Some fancy colouring
+red=`tput setaf 1`
+green=`tput setaf 2`
+yellow=`tput setaf 3`
+reset=`tput sgr0`
+
+main() 
+{
+	init
+	findsubdomains
+	wayback
+}
+
+init()
+{
+	if [ -d "./$domain" ]
+	then
+		echo "This is a known target."
+		mkdir $dir
+		
+	else
+		mkdir ./$domain
+		mkdir $dir
+	fi
+}
+
+findsubdomains()
+{
+	echo "${green}Recon started on $domain ${reset}"
+	echo "${green}Finding subdomains $domain ${reset}"
+        subfinder -d $domain -all -recursive >> $dir/tempdomains
+	assetfinder $domain -subs-only > $dir/tempdomains
+        echo "${green}Filtering domains ${reset}"
+        cat $dir/tempdomains | sort | uniq > $dir/domains.txt
+        rm $dir/tempdomains
+        cat $dir/domains.txt | sort | uniq | grep $domain |httpx -threads 200 -ports 80,443,8000,8080,8443,8888 > $dir/alive.txt
+        cat $dir/alive.txt | httpx -threads 200 -mc 200 | grep $domain > $dir/200.txt
+        naabu --list $dir/alive.txt -c 50 -nmap-cli 'nmap -sV -sC' -o $dir/ports.txt
+}
+
+wayback()
+{
+	urldir=$dir/urls
+	mkdir $dir/urls
+	
+	cat $dir/alive.txt | katana -d 5 -ps -pss waybackarchive,commoncrawl,alienvault -kf -jc -fx -ef woff,css,png,svg,jpg,woff2,jpeg,gif,svg | grep $domain > $urldir/main.txt
+	cat $urldir/main.txt | grep -E ".js" | grep $domain > $urldir/jsfiles
+	cat $urldir/main.txt | grep -E ".php" | grep $domain > $urldir/phpfiles
+	cat $urldir/main.txt | grep -E ".asp" | grep $domain > $urldir/aspfiles
+	cat $urldir/main.txt | grep -E ".cgi" | grep $domain > $urldir/cgifiles
+	cat $urldir/main.txt | grep -E ".jsp" | grep $domain > $urldir/jspfiles
+        cat $urldir/main.txt | grep "?" | grep $domain > $urldir/params.txt
+
+}
+
+main
