@@ -1,69 +1,64 @@
 #!/bin/bash
 
-########################################
-# Recon tool, Most of things copied from
-# nahamsec lazy recon
-# most things coppied from some random guys github hehe
-########################################
-
-# Global variables 
+# vars
 domain=$1
-dir=./$domain
+dirs=./$domain
+urldir=$dirs/urls
 
 
-# Some fancy colouring
+# clrs
 red=`tput setaf 1`
 green=`tput setaf 2`
 yellow=`tput setaf 3`
 reset=`tput sgr0`
 
-main() 
+main()
 {
-	init
-	findsubdomains
-	wayback
+        workspace
+        subdomaingathering
+        filtering
+        urlgathering
 }
 
-init()
+workspace()
 {
-	if [ -d "./$domain" ]
-	then
-		echo "This is a known target."
-		mkdir $dir
-		
-	else
-		mkdir ./$domain
-		mkdir $dir
-	fi
+                mkdir $domain
 }
 
-findsubdomains()
+subdomaingathering()
 {
-	echo "${green}Recon started on $domain ${reset}"
-	echo "${green}Finding subdomains $domain ${reset}"
-        subfinder -d $domain -all -recursive >> $dir/tempdomains
-	assetfinder $domain -subs-only > $dir/tempdomains
-        echo "${green}Filtering domains ${reset}"
-        cat $dir/tempdomains | sort | uniq > $dir/domains.txt
-        rm $dir/tempdomains
-        cat $dir/domains.txt | sort | uniq | grep $domain |httpx -threads 200 -ports 80,443,8000,8080,8443,8888 > $dir/alive.txt
-        cat $dir/alive.txt | httpx -threads 200 -mc 200 | grep $domain > $dir/200.txt
-        naabu --list $dir/alive.txt -c 50 -nmap-cli 'nmap -sV -sC' -o $dir/ports.txt
+        echo "${green}[*] Performing passive recon with CLI tools"
+        subfinder -d $domain -all -silent -recursive > $dirs/subs.txt| assetfinder -subs-only $domain | grep "$domain" >> $dirs/subs.txt
+        echo "${green}[*] Performing passive recon with online databases (This might take a while)"
+        curl -s "https://crt.sh/?q=%25.$domain&output=json" | jq -r '.[].name_value' | sed 's/\*\.//g' | sort -u | grep "$domain" >> $dirs/subs.txt
+        curl -s "http://web.archive.org/cdx/search/cdx?url=*.$domain/*&output=text&fl=original&collapse=urlkey" | sed -e 's_https*://__' -e "s/\/.*//" | sort -u | grep -v -E "=" | grep "$domain" >> $dirs/subs.txt
+        curl -s "https://otx.alienvault.com/api/v1/indicators/domain/$domain/url_list?limit=100&page=1" | grep -o '"hostname": *"[^"]*' | sed 's/"hostname": "//' | sort -u | grep "$domain" >> $dirs/subs.txt
+        echo "${red}[*] RECON COMPLETE"
+        wordcount="$(cat $dirs/subs.txt | wc -l)"
+        echo "${green}[-] Found $wordcount subdomains" 
 }
 
-wayback()
+filtering()
 {
-	urldir=$dir/urls
-	mkdir $dir/urls
-	
-	cat $dir/alive.txt | katana -d 5 -ps -pss waybackarchive,commoncrawl,alienvault -kf -jc -fx -ef woff,css,png,svg,jpg,woff2,jpeg,gif,svg | grep $domain > $urldir/main.txt
-	cat $urldir/main.txt | grep -E ".js" | grep $domain > $urldir/jsfiles
-	cat $urldir/main.txt | grep -E ".php" | grep $domain > $urldir/phpfiles
-	cat $urldir/main.txt | grep -E ".asp" | grep $domain > $urldir/aspfiles
-	cat $urldir/main.txt | grep -E ".cgi" | grep $domain > $urldir/cgifiles
-	cat $urldir/main.txt | grep -E ".jsp" | grep $domain > $urldir/jspfiles
-        cat $urldir/main.txt | grep "?" | grep $domain > $urldir/params.txt
+        echo "${green}[*] Filtering out"
+        cat $dirs/subs.txt | sort | uniq | grep $domain | httpx -threads 200 -ports 80,443,8000,8080,8443,8888 > $dirs/alive.txt
+        cat $dirs/alive.txt | httpx -threads 200 -mc 200 > $dirs/200.txt
+        echo "${red}[!] FILTERING COMPLETE"
+}
 
+urlgathering()
+{
+
+        mkdir $dirs/urls
+        cat $dirs/alive.txt | katana -d 5 -ps -pss waybackarchive,commoncrawl,alienvault -kf -jc -fx -ef woff,css,png,svg,jpg,woff2,jpeg,gif,svg | grep $domain >> $urldir/main.txt
+        cat $dirs/alive.txt | hakrawler | grep $domain >> $urldir/main.txt
+        cat $dirs/alive.txt | gau | grep "domain" >> $urldir/main.txt
+        cat $urldir/main.txt | grep ".js" | grep $domain > $urldir/jsfiles.txt
+        cat $urldir/main.txt | grep ".php" | grep $domain > $urldir/phpfiles.txt
+        cat $urldir/main.txt | grep ".asp" | grep $domain > $urldir/aspfiles.txt
+        cat $urldir/main.txt | grep ".cgi" | grep $domain > $urldir/cgifiles.txt
+        cat $urldir/main.txt | grep ".jsp" | grep $domain > $urldir/jspfiles.txt
+        cat $urldir/main.txt | grep "=" | grep $domain > $urldir/params.txt
 }
 
 main
