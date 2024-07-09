@@ -18,6 +18,7 @@ main()
         subdomaingathering
         filtering
         urlgathering
+        search_js_files
 }
 
 workspace()
@@ -27,9 +28,11 @@ workspace()
 
 subdomaingathering()
 {
+        # Use CLI tools to check for subdomains that have been indexed on the internet
         echo "${green}[*] Performing passive recon with CLI tools"
         subfinder -d $domain -all -silent -recursive > $dirs/subs.txt| assetfinder -subs-only $domain | grep "$domain" >> $dirs/subs.txt
         echo "${green}[*] Performing passive recon with online databases (This might take a while)"
+        # Check API's for subdomains and add them to the list of subdomains we have already discovered
         curl -s "https://crt.sh/?q=%25.$domain&output=json" | jq -r '.[].name_value' | sed 's/\*\.//g' | sort -u | grep "$domain" >> $dirs/subs.txt
         curl -s "http://web.archive.org/cdx/search/cdx?url=*.$domain/*&output=text&fl=original&collapse=urlkey" | sed -e 's_https*://__' -e "s/\/.*//" | sort -u | grep -v -E "=" | grep "$domain" >> $dirs/subs.txt
         curl -s "https://otx.alienvault.com/api/v1/indicators/domain/$domain/url_list?limit=100&page=1" | grep -o '"hostname": *"[^"]*' | sed 's/"hostname": "//' | sort -u | grep "$domain" >> $dirs/subs.txt
@@ -40,9 +43,11 @@ subdomaingathering()
 
 filtering()
 {
+        # Check what subdomains are up / responsive.
         echo "${green}[*] Filtering out"
         cat $dirs/subs.txt | sort | uniq | grep $domain | httpx -threads 200 -ports 80,443,8000,8080,8443,8888 > $dirs/alive.txt
         cat $dirs/alive.txt | httpx -threads 200 -mc 200 > $dirs/200.txt
+        # Scan each port on the hosts.
         naabu --list $dirs/alive.txt -c 50 -nmap-cli 'nmap -sV -sC' -o $dirs/naabuports.txt
         echo "${red}[!] FILTERING COMPLETE"
 }
@@ -51,9 +56,11 @@ urlgathering()
 {
 
         mkdir $dirs/urls
+        # Use online sources to hunt for indexed URLS given the user input.
         cat $dirs/alive.txt | katana -d 5 -ps -pss waybackarchive,commoncrawl,alienvault -kf -jc -fx -ef woff,css,png,svg,jpg,woff2,jpeg,gif,svg | grep $domain >> $urldir/main.txt
         cat $dirs/alive.txt | hakrawler | grep $domain >> $urldir/main.txt
         cat $dirs/alive.txt | gau | grep "domain" >> $urldir/main.txt
+        # Use grep to find endpoints of interest "php files, js files params etc..."
         cat $urldir/main.txt | grep ".js" | grep $domain > $urldir/jsfiles.txt
         cat $urldir/main.txt | grep ".php" | grep $domain > $urldir/phpfiles.txt
         cat $urldir/main.txt | grep ".asp" | grep $domain > $urldir/aspfiles.txt
@@ -63,4 +70,48 @@ urlgathering()
         cat $urldir/main.txt | grep "=" | grep $domain > $urldir/params.txt
 }
 
+search_js_files(){
+
+# Define the file containing the list of JS endpoints
+JS_FILES=$dirs/urls/jsfiles.txt
+
+# Define patterns to search for
+PATTERNS=(
+    "API_KEY"
+    "apiKey"
+    "token"
+    "Token"
+    "access_token"
+    "auth"
+    "password"
+    "passwd"
+    "secret"
+    "client_id"
+    "client_secret"
+    "/.git/"
+)
+
+# Function to search for sensitive info in a JS file
+search_sensitive_info() {
+    local url=$1
+    echo "Checking $url"
+
+    # Fetch the content of the JS file
+    content=$(curl -s "$url")
+    
+    # Search for each pattern in the content
+    for pattern in "${PATTERNS[@]}"; do
+        matches=$(echo "$content" | grep -i "$pattern")
+        if [[ -n "$matches" ]]; then
+            echo "Sensitive information found in $url: $pattern"
+            echo "$matches"
+        fi
+    done
+}
+
+# Read the file line by line and search for sensitive info
+cat $dirs/urls/jsfiles; while read url; do
+    search_sensitive_info "$url"
+done < "$JS_FILES"
+}
 main
