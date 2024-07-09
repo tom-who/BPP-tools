@@ -58,6 +58,7 @@ urlgathering()
         cat $urldir/main.txt | grep ".asp" | grep $domain > $urldir/aspfiles.txt
         cat $urldir/main.txt | grep ".cgi" | grep $domain > $urldir/cgifiles.txt
         cat $urldir/main.txt | grep ".jsp" | grep $domain > $urldir/jspfiles.txt
+        cat $urldir/main.txt | grep -e /api -e /v1/ -e /v2 -e _api> $urldir/api-endpoints.txt
         cat $urldir/main.txt | grep "=" | grep $domain > $urldir/params.txt
 }
 
