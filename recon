@@ -18,26 +18,24 @@ main()
         subdomaingathering
         filtering
         urlgathering
-        search_js_files
 }
-
 workspace()
 {
-                mkdir $domain
+        mkdir -p $dirs $urldir
 }
 
 subdomaingathering()
 {
-        # Use CLI tools to check for subdomains that have been indexed on the internet
-        echo "${green}[*] Performing passive recon with CLI tools"
-        subfinder -d $domain -all -silent -recursive > $dirs/subs.txt| assetfinder -subs-only $domain | grep "$domain" >> $dirs/subs.txt
-        echo "${green}[*] Performing passive recon with online databases (This might take a while)"
-        # Check API's for subdomains and add them to the list of subdomains we have already discovered
-        curl -s "https://crt.sh/?q=%25.$domain&output=json" | jq -r '.[].name_value' | sed 's/\*\.//g' | sort -u | grep "$domain" >> $dirs/subs.txt
-        curl -s "http://web.archive.org/cdx/search/cdx?url=*.$domain/*&output=text&fl=original&collapse=urlkey" | sed -e 's_https*://__' -e "s/\/.*//" | sort -u | grep -v -E "=" | grep "$domain" >> $dirs/subs.txt
-        curl -s "https://otx.alienvault.com/api/v1/indicators/domain/$domain/url_list?limit=100&page=1" | grep -o '"hostname": *"[^"]*' | sed 's/"hostname": "//' | sort -u | grep "$domain" >> $dirs/subs.txt
-        echo "${red}[*] RECON COMPLETE"
-        wordcount="$(cat $dirs/subs.txt | wc -l)"
+        # Use CLI tools and API's to gather subdomains, and pipe it into subs.txt.
+        echo "${green}[*] Performing passive recon with CLI tools and online databases"
+        { 
+          subfinder -d $domain -all -silent -recursive | grep "$domain";
+          assetfinder -subs-only $domain | grep "$domain";
+          curl -s "https://crt.sh/?q=%25.$domain&output=json" | jq -r '.[].name_value' | sed 's/\*\.//g' | grep "$domain";
+          curl -s "http://web.archive.org/cdx/search/cdx?url=*.$domain/*&output=text&fl=original&collapse=urlkey" | sed -e 's_https*://__' -e "s/\/.*//" | grep "$domain";
+          curl -s "https://otx.alienvault.com/api/v1/indicators/domain/$domain/url_list?limit=100&page=1" | grep -o '"hostname": *"[^"]*' | sed 's/"hostname": "//' | grep "$domain";
+        } | uniq > $dirs/subs.txt
+        wordcount=$(wc -l < $dirs/subs.txt)
         echo "${green}[-] Found $wordcount subdomains" 
 }
 
@@ -54,64 +52,19 @@ filtering()
 
 urlgathering()
 {
-
-        mkdir $dirs/urls
-        # Use online sources to hunt for indexed URLS given the user input.
-        cat $dirs/alive.txt | katana -d 5 -ps -pss waybackarchive,commoncrawl,alienvault -kf -jc -fx -ef woff,css,png,svg,jpg,woff2,jpeg,gif,svg | grep $domain >> $urldir/main.txt
-        cat $dirs/alive.txt | hakrawler | grep $domain >> $urldir/main.txt
-        cat $dirs/alive.txt | gau | grep "domain" >> $urldir/main.txt
-        # Use grep to find endpoints of interest "php files, js files params etc..."
-        cat $urldir/main.txt | grep ".js" | grep $domain > $urldir/jsfiles.txt
-        cat $urldir/main.txt | grep ".php" | grep $domain > $urldir/phpfiles.txt
-        cat $urldir/main.txt | grep ".asp" | grep $domain > $urldir/aspfiles.txt
-        cat $urldir/main.txt | grep ".cgi" | grep $domain > $urldir/cgifiles.txt
-        cat $urldir/main.txt | grep ".jsp" | grep $domain > $urldir/jspfiles.txt
-        cat $urldir/main.txt | grep -e /api -e /v1/ -e /v2 -e _api> $urldir/api-endpoints.txt
-        cat $urldir/main.txt | grep "=" | grep $domain > $urldir/params.txt
+        echo "${green}[*] Gathering URLs"
+        cat $dirs/alive.txt | xargs -I {} -P 10 sh -c 'katana -d 5 -ps -pss waybackarchive,commoncrawl,alienvault -kf -jc -fx -ef woff,css,png,svg,jpg,woff2,jpeg,gif,svg -u {}' | grep $domain > $urldir/main.txt
+        cat $dirs/alive.txt | xargs -I {} -P 10 sh -c 'hakrawler -url {}' | grep $domain >> $urldir/main.txt
+        cat $dirs/alive.txt | xargs -I {} -P 10 sh -c 'gau --subs {}' | grep $domain >> $urldir/main.txt
+        echo "${green}[*] Extracting endpoints of interest"
+        grep -E "\.js$|\.php$|\.asp$|\.cgi$|\.jsp$" $urldir/main.txt | grep $domain > $urldir/endpoints.txt
+        grep "\.js$" $urldir/endpoints.txt > $urldir/jsfiles.txt                                     
+        grep "\.php$" $urldir/endpoints.txt > $urldir/phpfiles.txt
+        grep "\.asp$" $urldir/endpoints.txt > $urldir/aspfiles.txt
+        grep "\.cgi$" $urldir/endpoints.txt > $urldir/cgifiles.txt
+        grep "\.jsp$" $urldir/endpoints.txt > $urldir/jspfiles.txt
+        grep -E "/api|/v[12]|_api" $urldir/main.txt > $urldir/api-endpoints.txt
+        grep "=" $urldir/main.txt | grep $domain > $urldir/params.txt
 }
 
-search_js_files(){
-
-# Define the file containing the list of JS endpoints
-JS_FILES=$dirs/urls/jsfiles.txt
-
-# Define patterns to search for
-PATTERNS=(
-    "API_KEY"
-    "apiKey"
-    "token"
-    "Token"
-    "access_token"
-    "auth"
-    "password"
-    "passwd"
-    "secret"
-    "client_id"
-    "client_secret"
-    "/.git/"
-)
-
-# Function to search for sensitive info in a JS file
-search_sensitive_info() {
-    local url=$1
-    echo "Checking $url"
-
-    # Fetch the content of the JS file
-    content=$(curl -s "$url")
-    
-    # Search for each pattern in the content
-    for pattern in "${PATTERNS[@]}"; do
-        matches=$(echo "$content" | grep -i "$pattern")
-        if [[ -n "$matches" ]]; then
-            echo "Sensitive information found in $url: $pattern"
-            echo "$matches"
-        fi
-    done
-}
-
-# Read the file line by line and search for sensitive info
-cat $dirs/urls/jsfiles; while read url; do
-    search_sensitive_info "$url"
-done < "$JS_FILES"
-}
 main
