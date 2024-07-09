@@ -43,6 +43,7 @@ filtering()
         echo "${green}[*] Filtering out"
         cat $dirs/subs.txt | sort | uniq | grep $domain | httpx -threads 200 -ports 80,443,8000,8080,8443,8888 > $dirs/alive.txt
         cat $dirs/alive.txt | httpx -threads 200 -mc 200 > $dirs/200.txt
+        naabu --list $dirs/alive.txt -c 50 -nmap-cli 'nmap -sV -sC' -o $dirs/naabuports.txt
         echo "${red}[!] FILTERING COMPLETE"
 }
 
