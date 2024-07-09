@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# vars  
+domain=$1
+
+# clrs  
+red=`tput setaf 1`
+green=`tput setaf 2`
+yellow=`tput setaf 3`
+reset=`tput sgr0`
+
+main()
+{
+        workspace
+        crawling
+}
+ 
+workspace()
+{
+                mkdir $domain
+}
+ 
+
+crawling()
+{
+	echo "${green}[*] Performing recon on $domain ${reset}"
+        echo https://$domain | katana -d 5 -ps -pss waybackarchive,commoncrawl,alienvault -kf -jc -fx > $domain/main.txt
+        echo https://$domain | hakrawler | grep $domain >> $domain/main.txt
+        cat $domain/main.txt | grep ".js" | grep $domain > $domain/jsfiles.txt
+        cat $domain/main.txt | grep ".php" | grep $domain > $domain/phpfiles.txt
+        cat $domain/main.txt | grep ".asp" | grep $domain > $domain/aspfiles.txt
+        cat $domain/main.txt | grep ".cgi" | grep $domain > $domain/cgifiles.txt
+        cat $domain/main.txt | grep ".jsp" | grep $domain > $domain/jspfiles.txt
+	cat $domain/main.txt | grep -e "_api" -e /api -e v1 -e -v2 | grep $domain > $domain/api-endpoints.txt
+        cat $domain/main.txt | grep "=" | grep $domain > $domain/params.txt
+	echo "${red}[!] Recon done, happy hacking!"
+}
+
+main
