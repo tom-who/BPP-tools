@@ -52,7 +52,6 @@ urlgathering()
 {
         echo "${green}[*] Gathering URLs"
         cat $dirs/alive.txt | katana -d 5 -ps -pss waybackarchive,commoncrawl,alienvault -kf -jc -fx -ef woff,css,png,svg,jpg,woff2,jpeg,gif,svg | grep $domain > $urldir/main.txt
-        cat $dirs/alive.txt | hakrawler | grep $domain >> $urldir/main.txt
         cat $dirs/alive.txt | gau | grep $domain >> $urldir/main.txt
         echo "${green}[*] Extracting endpoints of interest"
         grep -E "\.js$|\.php$|\.asp$|\.cgi$|\.jsp$" $urldir/main.txt | grep $domain > $urldir/endpoints.txt
