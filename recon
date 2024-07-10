@@ -34,7 +34,7 @@ subdomaingathering()
           curl -s "https://crt.sh/?q=%25.$domain&output=json" | jq -r '.[].name_value' | sed 's/\*\.//g' | grep "$domain";
           curl -s "http://web.archive.org/cdx/search/cdx?url=*.$domain/*&output=text&fl=original&collapse=urlkey" | sed -e 's_https*://__' -e "s/\/.*//" | grep "$domain";
           curl -s "https://otx.alienvault.com/api/v1/indicators/domain/$domain/url_list?limit=100&page=1" | grep -o '"hostname": *"[^"]*' | sed 's/"hostname": "//' | grep "$domain";
-        } | uniq > $dirs/subs.txt
+        } | grep -v -E "=" | sort | uniq | sort | uniq > $dirs/subs.txt
         wordcount=$(wc -l < $dirs/subs.txt)
         echo "${green}[-] Found $wordcount subdomains" 
 }
