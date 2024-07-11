@@ -48,7 +48,7 @@ filtering_scanning()
         cat $dirs/alive.txt | httpx -threads 200 -mc 200 > $dirs/200.txt
         echo "${red}[!] FILTERING COMPLETE"
         echo "${green}[*] Generating screenshots and a HTML report with aquatone"
-        cat $dirs/alive.txt | aquatone -out $aquatonedir; rm -rf aquatone_log.log aquatone_session.json aquatone_urls.txt headers/ html/
+        cat $dirs/alive.txt | aquatone -out $aquatonedir
 }
 
 urlgathering()
