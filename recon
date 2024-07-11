@@ -16,7 +16,7 @@ main()
 {
         workspace
         subdomaingathering
-        filtering
+        filtering_scanning
         urlgathering
 }
 workspace()
@@ -39,13 +39,15 @@ subdomaingathering()
         echo "${green}[-] Found $wordcount subdomains" 
 }
 
-filtering()
+filtering_scanning()
 {
         # Check what subdomains are up / responsive.
         echo "${green}[*] Filtering out"
         cat $dirs/subs.txt | sort | uniq | grep $domain | httpx -threads 200 -ports 80,443,8000,8080,8443,8888 > $dirs/alive.txt
         cat $dirs/alive.txt | httpx -threads 200 -mc 200 > $dirs/200.txt
         echo "${red}[!] FILTERING COMPLETE"
+        echo "${green}[*] Generating screenshots and a HTML report with aquatone"
+        cat $dirs/alive.txt | aquatone ; rm -rf aquatone_log.log aquatone_session.json aquatone_urls.txt headers/ html/
 }
 
 urlgathering()
