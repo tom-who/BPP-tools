@@ -17,12 +17,12 @@ main()
 {
         workspace
         subdomaingathering
-        filtering_scanning
+        filtering
         urlgathering
 }
 workspace()
 {
-        mkdir -p $dirs $urldir
+        mkdir -p $dirs $urldir $aquatonedir
 }
 
 subdomaingathering()
@@ -35,27 +35,33 @@ subdomaingathering()
           curl -s "https://crt.sh/?q=%25.$domain&output=json" | jq -r '.[].name_value' | sed 's/\*\.//g' | grep "$domain";
           curl -s "http://web.archive.org/cdx/search/cdx?url=*.$domain/*&output=text&fl=original&collapse=urlkey" | sed -e 's_https*://__' -e "s/\/.*//" | grep "$domain";
           curl -s "https://otx.alienvault.com/api/v1/indicators/domain/$domain/url_list?limit=100&page=1" | grep -o '"hostname": *"[^"]*' | sed 's/"hostname": "//' | grep "$domain";
-        } | grep -v -E "=" | sort | uniq | sort | uniq > $dirs/subs.txt
+        } | uniq > $dirs/subs.txt
         wordcount=$(wc -l < $dirs/subs.txt)
         echo "${green}[-] Found $wordcount subdomains" 
 }
 
-filtering_scanning()
+filtering()
 {
         # Check what subdomains are up / responsive.
         echo "${green}[*] Filtering out"
         cat $dirs/subs.txt | sort | uniq | grep $domain | httpx -threads 200 -ports 80,443,8000,8080,8443,8888 > $dirs/alive.txt
         cat $dirs/alive.txt | httpx -threads 200 -mc 200 > $dirs/200.txt
+        cat $dirs/alive.txt | httpx -threads 200 -mc 404 > 404.txt
+        cat $dirs/alive.txt | httpx -threads 200 -mc 403 > 403.txt
+        rm -rf $dirs/subs.txt
+        # Scan each port on the hosts.
+        naabu --list $dirs/alive.txt -c 50 -nmap-cli 'nmap -sV -sC' -o $dirs/naabuports.txt
         echo "${red}[!] FILTERING COMPLETE"
         echo "${green}[*] Generating screenshots and a HTML report with aquatone"
-        cat $dirs/alive.txt | aquatone -out $aquatonedir
+        cat $dirs/alive.txt | grep https | uniq | sort | uniq | sort | aquatone -out $aquatonedir
+        echo "${red}[!] Domain flyover complete!"
 }
 
 urlgathering()
 {
         echo "${green}[*] Gathering URLs"
-        cat $dirs/alive.txt | katana -d 5 -ps -pss waybackarchive,commoncrawl,alienvault -kf -jc -fx -ef woff,css,png,svg,jpg,woff2,jpeg,gif,svg | grep $domain > $urldir/main.txt
-        cat $dirs/alive.txt | gau | grep $domain >> $urldir/main.txt
+        cat $dirs/alive.txt | katana -d 5 -ps -pss waybackarchive,commoncrawl,alienvault -kf -jc -fx -ef woff,css,png,svg,jpg,woff2,jpeg,gif,svg -u {} | grep $domain > $urldir/main.txt
+        cat $dirs/alive.txt | hakrawler| grep $domain >> $urldir/main.txt
         echo "${green}[*] Extracting endpoints of interest"
         grep -E "\.js$|\.php$|\.asp$|\.cgi$|\.jsp$" $urldir/main.txt | grep $domain > $urldir/endpoints.txt
         grep "\.js$" $urldir/endpoints.txt > $urldir/jsfiles.txt                                     
@@ -65,6 +71,12 @@ urlgathering()
         grep "\.jsp$" $urldir/endpoints.txt > $urldir/jspfiles.txt
         grep -E "/api|/v[12]|_api" $urldir/main.txt > $urldir/api-endpoints.txt
         grep "=" $urldir/main.txt | grep $domain > $urldir/params.txt
+        cat $urldir/main.txt | gf xss > $dirs/xss.txt
+        echo "${green}[*] Quick vulnerability scan!"
+        echo "${purple}[*] Open redirect..."
+        cat $urldir/main.txt | uniq | uro | gf redirect | uniq | uro | openredirex -p /home/tom/tools/.pl
+        echo "${purple}[*] XSS..."
+        cat $dirs/xss.txt | uniq | uro | sort | uniq | while read xssurl; do python3 ~/tools/XSStrike/xsstrike.py -u $xssurl ; echo $xxsurl ; done
 }
 
 main
