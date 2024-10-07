@@ -1,33 +1,29 @@
-## My recon tools for real world engagements
+# Recon Script for Bug Bounty
 
----
+## Overview
+This script automates reconnaissance for bug bounty hunting. It performs subdomain enumeration, URL gathering, and basic vulnerability scanning for a specified domain. Built with several popular CLI tools, this script simplifies the initial stages of web application security testing.
 
-# Install:
+## Features
+- **Subdomain Enumeration**: Gathers subdomains using various tools and APIs.
+- **URL Gathering**: Extracts interesting URLs from the target domain.
+- **Filtering**: Identifies responsive subdomains and categorizes them based on HTTP response codes.
+- **Title Extraction**: Retrieves page titles from active URLs for better insight.
+- **Screenshots**: Generates screenshots of live subdomains with Aquatone (if configured).
 
-`git clone https://github.com/tom-who/BPP-tools.git`
+## Prerequisites
+Before running the script, ensure you have the following tools installed:
+- [subfinder](https://github.com/projectdiscovery/subfinder)
+- [assetfinder](https://github.com/tomnomnom/assetfinder)
+- [httpx](https://github.com/projectdiscovery/httpx)
+- [katana](https://github.com/projectdiscovery/katana)
+- [aquatone](https://github.com/michenriksen/aquatone)
+- [jq](https://stedolan.github.io/jq/)
+- [curl](https://curl.se/)
 
-`cd BPP-tools`
+You can install the tools using your package manager or from the respective repositories.
 
-`chmod +x recon`
-
-`./recon example.com`
-
-# NS
-
-`
-
-**This will only collect indexed urls on google.com, not admin.google.com etc...**
-
-# RECON
-
-**This script is for the wildcard targets, it uses CLI tools and APIs to gather subdomains from the internet, pipes them into a file and gets rid of any dupes
-It then checks what subdomains are alive and filters them into their respective status codes**
-
-**Following this it uses the hosts that are alive and uses tools like katana and gau to check for indexed URLS on the internet, this part of the recon has found me XSS in 5 minutes before. Just make sure you know what you are looking for.**
-**It also checks for API endpoints and sorts them into their respective files**
-
-# USES
-
-`ns google.com`
-
-`recon google.com`
+## Usage
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/yourusername/recon-script.git
+   cd recon-script
