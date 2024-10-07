@@ -36,11 +36,10 @@ You can install the tools using your package manager or from the respective repo
 
 The script generates the following outputs:
 
-    Subdomain List: Located in ./<domain>/subs.txt
     Alive Subdomains: Located in ./<domain>/alive.txt
+    Filtered domains to their status codes respectively: Located in ./<domain>/403.txt
     Gathered URLs: Located in ./<domain>/urls/main.txt
     Aquatone Screenshots: Located in ./<domain>/aquatone
-    Title Extraction: Updates alive.txt with titles of each domain.
 
 # Customization
 
