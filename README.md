@@ -23,7 +23,6 @@ Before running the script, ensure you have the following tools installed:
 You can install the tools using your package manager or from the respective repositories.
 
 ## Usage
-1. Clone this repository:
    ```bash
    git clone https://github.com/tom-who/BPP-tools.git
    cd BPP-tools
