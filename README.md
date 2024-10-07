@@ -2,15 +2,19 @@
 
 ---
 
-### Install:
+# Install:
 
-`git clone https://github.com/tom-who/BPP-tools.git; cd BPP-tools; chmod +x recon; chmod +x ns; sudo mv recon /usr/bin/recon; sudo mv ns /usr/bin/ns`
+`git clone https://github.com/tom-who/BPP-tools.git`
+
+`cd BPP-tools`
+
+`chmod +x recon`
+
+`./recon example.com`
 
 # NS
 
-**So the first script "ns" stands for no subdomain and is used for targets that have no wildcards or subdomains allowed, for example**
-
-`ns google.com`
+`
 
 **This will only collect indexed urls on google.com, not admin.google.com etc...**
 
