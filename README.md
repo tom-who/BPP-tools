@@ -30,3 +30,26 @@ You can install the tools using your package manager or from the respective repo
 
    ./recon example.com
    ./ns example.com (no subdomain gathering)
+```
+
+# Output
+
+The script generates the following outputs:
+
+    Subdomain List: Located in ./<domain>/subs.txt
+    Alive Subdomains: Located in ./<domain>/alive.txt
+    Gathered URLs: Located in ./<domain>/urls/main.txt
+    Aquatone Screenshots: Located in ./<domain>/aquatone
+    Title Extraction: Updates alive.txt with titles of each domain.
+
+# Customization
+
+Feel free to modify the script to add or remove features based on your needs. You can incorporate additional tools or improve existing functions.
+Contributing
+
+Contributions are welcome! If you have suggestions for improvements or new features, please open an issue or submit a pull request.
+
+# Acknowledgements
+
+Thanks to the developers of the tools integrated into this script.
+Inspired by various bug bounty methodologies and tools.
