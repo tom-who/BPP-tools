@@ -25,5 +25,9 @@ You can install the tools using your package manager or from the respective repo
 ## Usage
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/recon-script.git
-   cd recon-script
+   git clone https://github.com/tom-who/BPP-tools.git
+   cd BPP-tools
+   chmod +x recon; chmod +x ns
+
+   ./recon example.com
+   ./ns example.com (no subdomain gathering)
