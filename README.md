@@ -44,7 +44,8 @@ The script generates the following outputs:
 # Customization
 
 Feel free to modify the script to add or remove features based on your needs. You can incorporate additional tools or improve existing functions.
-Contributing
+
+# Contributing
 
 Contributions are welcome! If you have suggestions for improvements or new features, please open an issue or submit a pull request.
 
